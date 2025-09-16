@@ -1,18 +1,35 @@
+# Development Dockerfile for Admin Dashboard
 FROM node:18-alpine
 
+# Install development tools
+RUN apk add --no-cache curl
+
+# Set working directory
 WORKDIR /app
 
-# Copy package files
+# Copy package files first for better caching
 COPY package*.json ./
 
-# Install dependencies
+# Install all dependencies (including dev)
 RUN npm install
 
 # Copy source code
 COPY . .
 
+# Create non-root user for security
+RUN addgroup -g 1001 -S nodejs && \
+  adduser -S nextjs -u 1001 -G nodejs
+
+# Change ownership
+RUN chown -R nextjs:nodejs /app
+USER nextjs
+
 # Expose port
 EXPOSE 3000
 
-# Start development server
+# Health check for Next.js
+HEALTHCHECK --interval=30s --timeout=3s --start-period=15s --retries=3 \
+  CMD curl -f http://localhost:3000/api/health || curl -f http://localhost:3000/ || exit 1
+
+# Start development server with hot reload
 CMD ["npm", "run", "dev"]
